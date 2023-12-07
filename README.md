@@ -1,0 +1,4 @@
+# BigRat Ransomware
+
+## Setup
+TODO
