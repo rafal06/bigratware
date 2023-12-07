@@ -1,5 +1,4 @@
 /target
 
-# Ciphers
-/key.bin
-/nonce.bin
+# RSA keys
+*.der
