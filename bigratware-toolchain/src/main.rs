@@ -1,7 +1,10 @@
 mod gen_keys;
+mod decrypt;
 
+use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use anyhow::Result;
+use crate::decrypt::decrypt;
 use crate::gen_keys::gen_keys;
 
 #[derive(Debug, Parser)]
@@ -15,6 +18,14 @@ struct Args {
 enum Command {
     /// Generate public and private RSA keys for use in Bigratware
     GenKeys,
+    /// Decrypt a file using the private key
+    Decrypt {
+        /// Path to a file to decrypt
+        filename: PathBuf,
+        /// Path to a private key file
+        #[arg(short, long)]
+        key: PathBuf,
+    }
 }
 
 fn main() -> Result<()> {
@@ -22,5 +33,6 @@ fn main() -> Result<()> {
 
     match args.command {
         Command::GenKeys => gen_keys(),
+        Command::Decrypt { filename, key } => decrypt(filename, key)
     }
 }
