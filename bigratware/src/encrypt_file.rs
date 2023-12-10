@@ -31,7 +31,7 @@ pub fn encrypt_file(
 
     let encrypted_key = public_key.encrypt(rng, Oaep::new::<Sha512>(), &key)?;
     dist_file.write_all(encrypted_key.as_slice())?;
-    let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &key)?;
+    let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &nonce)?;
     dist_file.write_all(encrypted_nonce.as_slice())?;
 
     let aead = XChaCha20Poly1305::new(key.as_ref().into());
