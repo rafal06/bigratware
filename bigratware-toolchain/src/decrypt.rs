@@ -1,24 +1,19 @@
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use anyhow::Result;
-use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
-use chacha20poly1305::aead::stream::DecryptorBE32;
 use rsa::pkcs8::DecodePrivateKey;
 use rsa::{Oaep, RsaPrivateKey};
 use sha2::Sha512;
+use decryptor::decrypt_file_chacha;
 
 const BIGRAT_SIZE: usize = include_bytes!("../../bigrat.png").len();
-const BUFFER_SIZE: usize = 500 + 16;
 
-pub fn decrypt(filename: PathBuf, private_key: PathBuf) -> Result<()> {
-    let mut file = File::open(filename)?;
+fn decrypt_key_nonce(mut file: &File, private_key_path: PathBuf) -> Result<([u8; 32], [u8; 19])> {
     file.seek(SeekFrom::Start(BIGRAT_SIZE as u64))?;
 
-    let mut dist_file = File::create("/home/rafal/boykisser-from-bigrat.png")?;
-
-    let private_key = fs::read(private_key)?;
+    let private_key = fs::read(private_key_path)?;
     let private_key = RsaPrivateKey::from_pkcs8_der(private_key.as_slice())?;
 
     let mut key_encrypted = [0u8; 256];
@@ -29,23 +24,16 @@ pub fn decrypt(filename: PathBuf, private_key: PathBuf) -> Result<()> {
     file.read_exact(&mut nonce_encrypted)?;
     let nonce = private_key.decrypt(Oaep::new::<Sha512>(), &nonce_encrypted).unwrap();
 
-    let aead = XChaCha20Poly1305::new(key.as_slice().into());
-    let mut stream_decryptor = DecryptorBE32::from_aead(aead, nonce.as_slice().into());
+    Ok((
+        <[u8; 32]>::try_from(key.as_slice())?,
+        <[u8; 19]>::try_from(nonce.as_slice())?,
+    ))
+}
 
-    let mut buffer = [0u8; BUFFER_SIZE];
-    loop {
-        let read_count = file.read(&mut buffer)?;
-        if read_count == BUFFER_SIZE {
-            let decrypted_data = stream_decryptor.decrypt_next(buffer.as_slice()).unwrap();
-            let _ = dist_file.write(&decrypted_data)?;
-        } else if read_count == 0 {
-            break;
-        } else {
-            let decrypted_data = stream_decryptor.decrypt_last(&buffer[..read_count]).unwrap();
-            let _ = dist_file.write(&decrypted_data)?;
-            break;
-        }
-    }
-
-    Ok(())
+pub fn decrypt_file(filename: PathBuf, private_key: PathBuf) -> Result<()> {
+    let file = File::open(filename)?;
+    let (key, nonce) = decrypt_key_nonce(&file, private_key)?;
+    // TODO: By default write next to the original file and accept an output path as an optional argument
+    let dist_path = PathBuf::from("/home/rafal/boykisser-from-bigrat.png");
+    decrypt_file_chacha(&file, dist_path, key, nonce)
 }

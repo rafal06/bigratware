@@ -4,8 +4,8 @@ mod decrypt;
 
 use clap::Parser;
 use anyhow::Result;
+use crate::decrypt::decrypt_file;
 use crate::cli::{Args, Command};
-use crate::decrypt::decrypt;
 use crate::gen_keys::gen_keys;
 
 fn main() -> Result<()> {
@@ -13,6 +13,6 @@ fn main() -> Result<()> {
 
     match args.command {
         Command::GenKeys => gen_keys(),
-        Command::Decrypt { filename, key } => decrypt(filename, key)
+        Command::Decrypt { filename, key } => decrypt_file(filename, key)
     }
 }

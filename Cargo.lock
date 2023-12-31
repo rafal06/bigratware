@@ -94,8 +94,8 @@ name = "bigratware-toolchain"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chacha20poly1305",
  "clap",
+ "decryptor",
  "rand",
  "rsa",
  "sha2",
@@ -227,6 +227,14 @@ dependencies = [
  "generic-array",
  "rand_core",
  "typenum",
+]
+
+[[package]]
+name = "decryptor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chacha20poly1305",
 ]
 
 [[package]]
