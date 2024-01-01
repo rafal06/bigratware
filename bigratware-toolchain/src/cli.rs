@@ -19,6 +19,11 @@ pub enum Command {
         #[arg(short, long)]
         key: PathBuf,
 
+        /// Path where the decrypted file will be saved.
+        /// Defaults to the original directory and file name with added prefix `decrypted-`
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
         /// Path to a file to decrypt
         filename: PathBuf,
     }

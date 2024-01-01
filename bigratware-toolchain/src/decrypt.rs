@@ -30,10 +30,20 @@ fn decrypt_key_nonce(mut file: &File, private_key_path: PathBuf) -> Result<([u8;
     ))
 }
 
-pub fn decrypt_file(filename: PathBuf, private_key: PathBuf) -> Result<()> {
-    let file = File::open(filename)?;
+pub fn decrypt_file(
+    file_path: PathBuf,
+    private_key: PathBuf,
+    output_path: Option<PathBuf>,
+) -> Result<()> {
+    let file = File::open(&file_path)?;
     let (key, nonce) = decrypt_key_nonce(&file, private_key)?;
-    // TODO: By default write next to the original file and accept an output path as an optional argument
-    let dist_path = PathBuf::from("/home/rafal/boykisser-from-bigrat.png");
+
+    let dist_path = if let Some(output_path) = output_path {
+        output_path
+    } else {
+        file_path.with_file_name(
+            "decrypted-".to_string() + &file_path.file_name().unwrap().to_string_lossy()
+        )
+    };
     decrypt_file_chacha(&file, dist_path, key, nonce)
 }

@@ -13,6 +13,6 @@ fn main() -> Result<()> {
 
     match args.command {
         Command::GenKeys => gen_keys(),
-        Command::Decrypt { filename, key } => decrypt_file(filename, key)
+        Command::Decrypt { filename, key, output } => decrypt_file(filename, key, output),
     }
 }
