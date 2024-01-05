@@ -14,7 +14,7 @@ pub enum Command {
     GenKeys,
 
     /// Decrypt a file using the private key
-    Decrypt {
+    DecryptFile {
         /// Path to a private key file
         #[arg(short, long)]
         key: PathBuf,
@@ -26,5 +26,15 @@ pub enum Command {
 
         /// Path to a file to decrypt
         filename: PathBuf,
-    }
+    },
+
+    /// Decrypt a base64-encoded key-nonce pair from the client
+    DecryptPair {
+        /// Path to a private key file
+        #[arg(short, long)]
+        key: PathBuf,
+
+        /// Base64 encoded key-nonce pair. If not provided, an interactive editor would open
+        pair: Option<String>,
+    },
 }
