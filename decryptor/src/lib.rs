@@ -1,3 +1,5 @@
+pub mod helpers;
+
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;

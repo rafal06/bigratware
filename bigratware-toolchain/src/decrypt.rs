@@ -6,11 +6,11 @@ use std::path::PathBuf;
 use std::process::{Command, exit};
 use anyhow::{Context, Result};
 use base64::Engine;
-use rand::Rng;
 use rsa::pkcs8::DecodePrivateKey;
 use rsa::{Oaep, RsaPrivateKey};
 use sha2::Sha512;
 use decryptor::decrypt_file_chacha;
+use decryptor::helpers::gen_new_path;
 
 const BIGRAT_SIZE: usize = include_bytes!("../../bigrat.png").len();
 
@@ -82,19 +82,11 @@ pub fn decrypt_pair(key_path: PathBuf, pair: Option<String>) -> Result<()> {
     let pair_base64 = if let Some(pair) = pair {
         pair
     } else {
-        let mut rng = rand::thread_rng();
-        let temp_file_path = loop {
-            let path = env::temp_dir().join(
-                "decrypt-pair-".to_owned() + rng.gen::<u32>().to_string().as_str()
-            );
-            match path.try_exists() {
-                Ok(exists) => if !exists { break path }
-                Err(err) => return Err(err).with_context( ||
-                    "Error creating a temporary file \
-                    \nPlease use a --pair <PAIR> argument instead"
-                )
-            };
-        };
+        let temp_file_path = gen_new_path(env::temp_dir().join("decrypt-pair"), true)
+            .with_context(||
+                "Error creating a temporary file \
+                \nPlease use a --pair <PAIR> argument instead"
+            )?;
         let mut temp_file = File::create(&temp_file_path)
             .with_context( ||
                 "Error creating a temporary file \
