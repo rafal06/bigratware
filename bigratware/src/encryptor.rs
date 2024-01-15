@@ -69,38 +69,39 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
         let entry = entry?;
         if entry.file_type()?.is_dir() {
             encrypt_everything(&entry.path(), public_key, rng)?;
-        } else {
-            let mut file = match File::open(entry.path()) {
-                Ok(file) => file,
-                Err(e) => {
-                    eprintln!("Failed to open file {}: {}", entry.path().display(), e);
-                    continue;
-                },
-            };
-
-            let new_path = match gen_new_path(
-                PathBuf::from(&format!("{}.png", entry.path().display())),
-                false,
-            ) {
-                Ok(path) => path,
-                Err(e) => {
-                    eprintln!("Failed to generate a destination file name from source file {:?}: {}", entry.path(), e);
-                    continue;
-                }
-            };
-
-            if let Err(e) = encrypt_file(
-                &mut file,
-                &new_path,
-                encrypted_key.as_slice(),
-                encrypted_nonce.as_slice(),
-                aead.clone(),
-                nonce.as_ref(),
-            ) {
-                eprintln!("Failed to encrypt a file {:?}: {}", entry.path(), e);
-                continue;
-            };
+            continue;
         }
+
+        let mut file = match File::open(entry.path()) {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("Failed to open file {}: {}", entry.path().display(), e);
+                continue;
+            },
+        };
+
+        let new_path = match gen_new_path(
+            PathBuf::from(&format!("{}.png", entry.path().display())),
+            false,
+        ) {
+            Ok(path) => path,
+            Err(e) => {
+                eprintln!("Failed to generate a destination file name from source file {:?}: {}", entry.path(), e);
+                continue;
+            }
+        };
+
+        if let Err(e) = encrypt_file(
+            &mut file,
+            &new_path,
+            encrypted_key.as_slice(),
+            encrypted_nonce.as_slice(),
+            aead.clone(),
+            nonce.as_ref(),
+        ) {
+            eprintln!("Failed to encrypt a file {:?}: {}", entry.path(), e);
+            continue;
+        };
     }
     Ok(())
 }
