@@ -23,8 +23,8 @@ fn encrypt_file(
     nonce: &[u8],
 ) -> anyhow::Result<()> {
     let mut dist_file = OpenOptions::new()
-        .append(true)
-        .create(true)
+        .write(true)
+        .create_new(true)
         .open(dist_path)
         .with_context(|| format!("Failed to create or open a destination file {}", dist_path.display()))?;
 
