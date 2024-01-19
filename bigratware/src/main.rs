@@ -1,4 +1,5 @@
 mod encryptor;
+mod decryptor;
 
 use rsa::pkcs8::DecodePublicKey;
 use rsa::RsaPublicKey;
