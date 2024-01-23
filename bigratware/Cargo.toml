@@ -13,3 +13,8 @@ rsa = { workspace = true, features = ["sha2"] }
 chacha20poly1305 = { workspace = true }
 sha2 = { workspace = true }
 dirs-next = "2.0.0"
+
+[target.'cfg(windows)'.dependencies]
+indoc = "2.0.4"
+native-windows-derive = "1.0.5"
+native-windows-gui = "1.0.13"
