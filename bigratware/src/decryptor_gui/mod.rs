@@ -1,3 +1,5 @@
+mod decryption_dialog;
+
 extern crate native_windows_gui as nwg;
 extern crate native_windows_derive as nwd;
 
@@ -7,6 +9,7 @@ use nwd::NwgUi;
 use nwg::{Font, NativeUi};
 use indoc::indoc;
 use crate::decryptor::StatusData;
+use crate::decryptor_gui::decryption_dialog::DecryptionDialog;
 
 const BIGRAT_SIDEBAR: &[u8; 576138] = include_bytes!("sidebar.bmp");
 const SIDEBAR_WIDTH: i32 = 240;
@@ -23,6 +26,10 @@ pub struct Decryptor {
     )]
     #[nwg_events(OnWindowClose: [nwg::stop_thread_dispatch()])]
     window: nwg::Window,
+
+    #[nwg_control]
+    #[nwg_events(OnNotice: [nwg::stop_thread_dispatch()])] // TODO: handle decryption finish
+    decryption_end_notice: nwg::Notice,
 
     #[nwg_resource(source_bin: Some(BIGRAT_SIDEBAR.as_slice()))]
     bigrat_sidebar: nwg::Bitmap,
@@ -76,14 +83,18 @@ pub struct Decryptor {
     )]
     decryptor_key_input: nwg::TextInput,
 
-    #[nwg_control(text: "Decrypt", position: (CONTENT_H_START, 560))]
-    #[nwg_events(OnButtonClick: [Decryptor::say_hello])]
+    #[nwg_control(
+        text: "Decrypt",
+        position: (CONTENT_H_START, 560),
+        size: (100, 30)
+    )]
+    #[nwg_events(OnButtonClick: [Decryptor::decrypt])]
     decrypt_btn: nwg::Button,
 }
 
 impl Decryptor {
-    fn say_hello(&self) {
-        nwg::simple_message("Hello", &format!("Hello, {}!", self.decryptor_key_input.text()));
+    fn decrypt(&self) {
+        DecryptionDialog::open(self.decryption_end_notice.sender());
     }
 }
 
