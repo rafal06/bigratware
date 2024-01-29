@@ -66,6 +66,7 @@ fn encrypt_dir_recursive(
     for entry in current_path.read_dir()? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
+            // TODO: handle errors
             encrypt_dir_recursive(base_path, &entry.path(), &aead, nonce, encrypted_key, encrypted_nonce)?;
             continue;
         }

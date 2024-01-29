@@ -3,7 +3,7 @@ pub mod helpers;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
 use chacha20poly1305::aead::stream::DecryptorBE32;
 
@@ -32,12 +32,18 @@ pub fn decrypt_file_chacha(
     loop {
         let read_count = source_file.read(&mut buffer)?;
         if read_count == BUFFER_SIZE {
-            let decrypted_data = stream_decryptor.decrypt_next(buffer.as_slice()).unwrap();
+            let decrypted_data = match stream_decryptor.decrypt_next(buffer.as_slice()) {
+                Ok(data) => data,
+                Err(err) => return Err(anyhow!("decryption error: {}", err)),
+            };
             let _ = dist_file.write(&decrypted_data)?;
         } else if read_count == 0 {
             break;
         } else {
-            let decrypted_data = stream_decryptor.decrypt_last(&buffer[..read_count]).unwrap();
+            let decrypted_data = match stream_decryptor.decrypt_last(&buffer[..read_count]) {
+                Ok(data) => data,
+                Err(err) => return Err(anyhow!("decryption error: {}", err)),
+            };
             let _ = dist_file.write(&decrypted_data)?;
             break;
         }

