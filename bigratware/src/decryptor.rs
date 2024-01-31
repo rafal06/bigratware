@@ -89,7 +89,9 @@ pub fn decrypt_recursive(path: &Path, key: &[u8; 32], nonce: &[u8; 19]) -> Resul
     for entry in path.read_dir()? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            decrypt_recursive(&entry.path(), &key, &nonce)?;  // TODO: handle errors
+            if let Err(err) = decrypt_recursive(&entry.path(), key, nonce) {
+                eprintln!("Error decrypting directory {:?}: {}", entry.path(), err);
+            }
             continue;
         }
 
