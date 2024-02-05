@@ -12,7 +12,7 @@ use nwd::NwgUi;
 use nwg::{Font, NativeUi};
 use indoc::indoc;
 use crate::decryptor::StatusData;
-use crate::decryptor_gui::decryption_dialog::DecryptionDialog;
+use crate::decryptor_gui::decryption_dialog::{DecryptionDialog, DecryptionError};
 
 const BIGRAT_SIDEBAR: &[u8; 576138] = include_bytes!("sidebar.bmp");
 const SIDEBAR_WIDTH: i32 = 240;
@@ -33,8 +33,9 @@ pub struct Decryptor {
     #[nwg_control]
     #[nwg_events(OnNotice: [Decryptor::on_decryption_finish])]
     decryption_end_notice: nwg::Notice,
-    decryption_dialog_thread: RefCell<Option<thread::JoinHandle<Result<()>>>>,
+    decryption_dialog_thread: RefCell<Option<thread::JoinHandle<Result<(), DecryptionError>>>>,
     working_path: PathBuf,
+    status_data: StatusData,
 
     #[nwg_resource(source_bin: Some(BIGRAT_SIDEBAR.as_slice()))]
     bigrat_sidebar: nwg::Bitmap,
@@ -103,6 +104,7 @@ impl Decryptor {
             self.decryption_end_notice.sender(),
             self.decryptor_key_input.text(),
             self.working_path.clone(),
+            self.status_data.clone(),
         ));
     }
 
@@ -129,11 +131,12 @@ pub fn start_decryptor_gui(status_data: StatusData, working_path: PathBuf) -> Re
 
     let window = Decryptor::build_ui(Decryptor {
         working_path,
+        status_data,
         ..Default::default()
     }).with_context(|| "Failed to build UI")?;
 
     let pair_b64 = base64::engine::general_purpose::STANDARD_NO_PAD
-        .encode([status_data.encrypted_key, status_data.encrypted_nonce].concat());
+        .encode([window.status_data.encrypted_key, window.status_data.encrypted_nonce].concat());
     window.info_box.set_text(&(window.info_box.text() + &pair_b64));
 
     nwg::dispatch_thread_events();
