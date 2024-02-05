@@ -128,7 +128,7 @@ impl DecryptionDialog {
             Ok(_) => "Decryption finished successfully!".to_owned(),
             Err(err) => {
                 match err {
-                    DecryptionError::PairNotMatching => "The supplied key does not correct".to_owned(),
+                    DecryptionError::PairNotMatching => "The supplied key is not correct".to_owned(),
                     DecryptionError::Other(err) => format!("Error decrypting files: {err}"),
                 }
             },
