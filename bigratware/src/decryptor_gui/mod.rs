@@ -27,7 +27,7 @@ pub struct Decryptor {
         center: true,
         flags: "WINDOW|VISIBLE",
     )]
-    #[nwg_events(OnWindowClose: [Decryptor::on_close])]
+    #[nwg_events(OnWindowClose: [Decryptor::on_close(SELF, EVT_DATA)])]
     window: nwg::Window,
 
     #[nwg_control]
@@ -114,8 +114,16 @@ impl Decryptor {
         }
     }
 
-    fn on_close(&self) {
-        if self.decryption_dialog_thread.try_borrow().unwrap().is_none() {
+    fn on_close(&self, data: &nwg::EventData) {
+        // if the dialog is still open
+        if match self.decryption_dialog_thread.try_borrow() {
+            Ok(thread) => thread.is_some(),
+            Err(_) => true,
+        } {
+            if let nwg::EventData::OnWindowClose(close_data) = data {
+                close_data.close(false);
+            }
+        } else {
             nwg::stop_thread_dispatch();
         }
     }

@@ -30,7 +30,7 @@ pub struct DecryptionDialog {
         flags: "WINDOW|VISIBLE",
     )]
     #[nwg_events(
-        OnWindowClose: [DecryptionDialog::on_close],
+        OnWindowClose: [DecryptionDialog::on_close(SELF, EVT_DATA)],
         OnInit: [DecryptionDialog::on_init])
     ]
     window: nwg::Window,
@@ -65,7 +65,7 @@ pub struct DecryptionDialog {
         size: (130, 30),
         flags: "NONE",
     )]
-    #[nwg_events(OnButtonClick: [DecryptionDialog::on_close])]
+    #[nwg_events(OnButtonClick: [DecryptionDialog::on_close(SELF, EVT_DATA)])]
     close_button: nwg::Button,
 }
 
@@ -146,8 +146,16 @@ impl DecryptionDialog {
         self.close_button.set_visible(true);
     }
 
-    fn on_close(&self) {
-        if self.decryption_result.borrow().is_some() {
+    fn on_close(&self, data: &nwg::EventData) {
+        // if the decryption hasn't finished yet
+        if match self.decryption_result.try_borrow() {
+            Ok(result) => result.is_none(),
+            Err(_) => true,
+        } {
+            if let nwg::EventData::OnWindowClose(close_data) = data {
+                close_data.close(false);
+            }
+        } else {
             nwg::stop_thread_dispatch();
         }
     }
