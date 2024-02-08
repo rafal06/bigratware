@@ -25,7 +25,7 @@ impl From<Error> for DecryptionError {
 pub struct DecryptionDialog {
     #[nwg_control(
         title: "Decrypting…",
-        size: (370, 150),
+        size: (370, 120),
         center: true,
         flags: "WINDOW|VISIBLE",
     )]
@@ -58,6 +58,15 @@ pub struct DecryptionDialog {
         marquee: true,
     )]
     progress_bar: nwg::ProgressBar,
+
+    #[nwg_control(
+        text: "Close",
+        position: (120, 65),
+        size: (130, 30),
+        flags: "NONE",
+    )]
+    #[nwg_events(OnButtonClick: [DecryptionDialog::on_close])]
+    close_button: nwg::Button,
 }
 
 impl DecryptionDialog {
@@ -133,6 +142,8 @@ impl DecryptionDialog {
                 }
             },
         });
+        self.progress_bar.set_visible(false);
+        self.close_button.set_visible(true);
     }
 
     fn on_close(&self) {
