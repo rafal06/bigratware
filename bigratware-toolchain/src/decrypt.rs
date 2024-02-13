@@ -1,5 +1,5 @@
 use std::{fs, env};
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::io::ErrorKind::NotFound;
 use std::path::PathBuf;
@@ -67,7 +67,12 @@ pub fn decrypt_file(
             "decrypted-".to_string() + &file_path.file_name().unwrap().to_string_lossy()
         )
     };
-    decrypt_file_chacha(&file, dist_path, key, nonce)
+    let dist_file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(dist_path)?;
+
+    decrypt_file_chacha(&file, &dist_file, key, nonce)
 }
 
 macro_rules! editor_error {

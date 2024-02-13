@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::io;
+use std::fs::{File, OpenOptions};
+use std::{fs, io};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use anyhow::{Context, Result};
@@ -7,6 +7,7 @@ use base64::Engine;
 use chacha20poly1305::aead::stream::DecryptorBE32;
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
 use decryptor::decrypt_file_chacha;
+use decryptor::helpers::gen_new_path;
 use crate::BIGRAT_PNG;
 use crate::encryptor::{STATUS_VERIFY_ENCRYPTED_STR_LEN, STATUS_VERIFY_STR};
 
@@ -114,13 +115,21 @@ pub fn decrypt_recursive(path: &Path, key: &[u8; 32], nonce: &[u8; 19]) -> Resul
         }
 
         let encrypted_file = File::open(entry.path())?;
+        let dist_file_path = gen_new_path(entry.path().with_extension(""), false)?;
+        let dist_file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&dist_file_path)?;
+
+        // TODO: check if the file starts with bigrat
         if let Err(error) = decrypt_file_chacha(
             &encrypted_file,
-            entry.path().with_extension(""),
+            &dist_file,
             *key,
             *nonce
         ) {
-            eprintln!("Failed to decrypt file {:?}: {}", entry.path(), error);
+            eprintln!("Failed to decrypt file {:?}: {}", entry.path().display(), error);
+            fs::remove_file(dist_file_path)?;
             continue;
         }
     }

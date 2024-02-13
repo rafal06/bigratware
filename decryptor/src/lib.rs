@@ -2,7 +2,6 @@ pub mod helpers;
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
 use chacha20poly1305::aead::stream::DecryptorBE32;
@@ -16,14 +15,12 @@ const BUFFER_SIZE: usize = 500 + 16;
 /// Fails if the key or nonce is incorrect.
 pub fn decrypt_file_chacha(
     mut source_file: &File,
-    dist_path: PathBuf,
+    mut dist_file: &File,
     key: [u8; 32],
     nonce: [u8; 19]
 ) -> Result<()> {
     // Skip a bigrat PNG and encrypted key-nonce pair
     source_file.seek(SeekFrom::Start(BIGRAT_SIZE as u64 + 256 * 2))?;
-
-    let mut dist_file = File::create(dist_path)?;
 
     let aead = XChaCha20Poly1305::new(key.as_slice().into());
     let mut stream_decryptor = DecryptorBE32::from_aead(aead, nonce.as_slice().into());
