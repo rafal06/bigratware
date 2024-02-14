@@ -99,6 +99,7 @@ impl DecryptionDialog {
         let decrypted_pair_b64 = self.decrypted_pair_b64.clone();
         let working_path = self.working_path.clone();
         let encrypted_verify_str = self.status_data.encrypted_verify_str;
+        let encrypted_key = self.status_data.encrypted_key;
         *self.decryption_thread.borrow_mut() = Some(thread::spawn(move || -> Result<(), DecryptionError> {
             let (key, nonce) = match decode_pair_base64(&decrypted_pair_b64) {
                 Ok(pair) => pair,
@@ -121,6 +122,7 @@ impl DecryptionDialog {
                 &working_path,
                 &key,
                 &nonce,
+                &encrypted_key,
             ) {
                 sender.notice();
                 return Err(DecryptionError::Other(err));

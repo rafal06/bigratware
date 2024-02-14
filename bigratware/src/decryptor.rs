@@ -104,24 +104,50 @@ pub fn decode_pair_base64(pair_base64: &str) -> Result<([u8; 32], [u8; 19])> {
     ))
 }
 
-pub fn decrypt_recursive(path: &Path, key: &[u8; 32], nonce: &[u8; 19]) -> Result<()> {
-    for entry in path.read_dir()? {
+pub fn decrypt_recursive(
+    path: &Path,
+    key: &[u8; 32],
+    nonce: &[u8; 19],
+    encrypted_key: &[u8; 256],
+) -> Result<()> {
+    'entries: for entry in path.read_dir()? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            if let Err(err) = decrypt_recursive(&entry.path(), key, nonce) {
+            if let Err(err) = decrypt_recursive(&entry.path(), key, nonce, encrypted_key) {
                 eprintln!("Error decrypting directory {:?}: {}", entry.path(), err);
             }
             continue;
         }
 
-        let encrypted_file = File::open(entry.path())?;
+        let mut encrypted_file = File::open(entry.path())?;
         let dist_file_path = gen_new_path(entry.path().with_extension(""), false)?;
         let dist_file = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&dist_file_path)?;
 
-        // TODO: check if the file starts with bigrat
+        if let Err(e) = encrypted_file.seek(SeekFrom::Start(BIGRAT_PNG.len() as u64)) {
+            eprintln!("Cannot read file {:?}: {e}", dist_file_path.display());
+            fs::remove_file(&dist_file_path)?;
+            continue;
+        }
+        let mut buffer = [0u8; 1];
+        for byte in encrypted_key {
+            if let Err(e) = encrypted_file.read(&mut buffer) {
+                eprintln!("Cannot read file {:?}: {e}", entry.path().display());
+                fs::remove_file(&dist_file_path)?;
+                continue;
+            }
+            if byte != &buffer[0] {
+                eprintln!(
+                    "File {:?} is either not encrypted or encrypted with a different key",
+                    entry.path().display(),
+                );
+                fs::remove_file(&dist_file_path)?;
+                continue 'entries;
+            }
+        }
+
         if let Err(error) = decrypt_file_chacha(
             &encrypted_file,
             &dist_file,
