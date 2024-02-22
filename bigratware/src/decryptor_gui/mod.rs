@@ -11,8 +11,8 @@ use base64::Engine;
 use nwd::NwgUi;
 use nwg::{Font, NativeUi};
 use indoc::indoc;
-use crate::decryptor::StatusData;
 use crate::decryptor_gui::decryption_dialog::{DecryptionDialog, DecryptionError};
+use crate::status_file::StatusData;
 
 const BIGRAT_SIDEBAR: &[u8; 576138] = include_bytes!("sidebar.bmp");
 const SIDEBAR_WIDTH: i32 = 240;

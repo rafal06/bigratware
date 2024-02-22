@@ -5,17 +5,18 @@ mod decryptor;
 #[cfg(windows)]
 mod decryptor_gui;
 mod startup;
+mod status_file;
 
 use std::fs;
 use rsa::pkcs8::DecodePublicKey;
 use rsa::RsaPublicKey;
 use anyhow::Result;
 use ::decryptor::helpers::gen_new_path;
-use crate::decryptor::{get_status_data, StatusReadError};
 use crate::encryptor::encrypt_everything;
 
 #[cfg(windows)]
 use crate::decryptor_gui::start_decryptor_gui;
+use crate::status_file::{get_status_data, StatusReadError};
 
 const BIGRAT_PNG: &[u8; 1044942] = include_bytes!("../../bigrat.png");
 const PUBLIC_KEY: &[u8; 294] = include_bytes!("../../public-key.der");

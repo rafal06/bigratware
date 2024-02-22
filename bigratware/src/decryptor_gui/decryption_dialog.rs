@@ -7,8 +7,9 @@ use std::thread;
 use anyhow::{Context, Result, Error};
 use nwg::NativeUi;
 use nwd::NwgUi;
-use crate::decryptor::{decode_pair_base64, decrypt_recursive, StatusData, verify_supplied_pair};
+use crate::decryptor::{decode_pair_base64, decrypt_recursive, verify_supplied_pair};
 use crate::startup::remove_self;
+use crate::status_file::StatusData;
 
 #[derive(Debug)]
 pub enum DecryptionError {
