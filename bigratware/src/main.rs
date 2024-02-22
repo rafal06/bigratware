@@ -4,6 +4,7 @@ mod encryptor;
 mod decryptor;
 #[cfg(windows)]
 mod decryptor_gui;
+mod startup;
 
 use std::fs;
 use rsa::pkcs8::DecodePublicKey;

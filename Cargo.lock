@@ -94,6 +94,7 @@ dependencies = [
  "decryptor",
  "dirs-next",
  "indoc",
+ "mslnk",
  "native-windows-derive",
  "native-windows-gui",
  "rand",
@@ -406,6 +407,17 @@ name = "log"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+
+[[package]]
+name = "mslnk"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86c97310150b7f496a93f31690da7822b99d95ff68ca9d30fb09d3ad54375c76"
+dependencies = [
+ "bitflags 1.3.2",
+ "byteorder",
+ "log",
+]
 
 [[package]]
 name = "native-windows-derive"
