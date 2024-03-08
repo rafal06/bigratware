@@ -1,4 +1,4 @@
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File, OpenOptions, remove_file};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use anyhow::{Context, Result};
@@ -67,15 +67,19 @@ pub fn decrypt_recursive(
             }
         }
 
-        if let Err(error) = decrypt_file_chacha(
+        if let Err(err) = decrypt_file_chacha(
             &encrypted_file,
             &dist_file,
             *key,
             *nonce
         ) {
-            eprintln!("Failed to decrypt file {:?}: {}", entry.path().display(), error);
-            fs::remove_file(dist_file_path)?;
+            eprintln!("Failed to decrypt file \"{}\": {err}", entry.path().display());
+            remove_file(dist_file_path)?;
             continue;
+        }
+
+        if let Err(err) = remove_file(entry.path()) {
+            eprintln!("Failed to remove file \"{}\": {err}", entry.path().display());
         }
     }
 

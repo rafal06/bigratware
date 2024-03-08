@@ -1,4 +1,4 @@
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, remove_file};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
@@ -115,6 +115,17 @@ fn encrypt_dir_recursive(
             eprintln!("Failed to encrypt a file {:?}: {}", entry.path(), e);
             continue;
         };
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(entry.path())?;
+
+        if let Err(e) = file.write(&vec![0u8; file.metadata().unwrap().len() as usize]) {
+            eprintln!("Failed to overwrite file \"{}\": {e}", entry.path().display());
+        };
+        if let Err(e) = remove_file(entry.path()) {
+            eprintln!("Failed to remove file \"{}\": {e}", entry.path().display());
+        }
     }
 
     Ok(())
