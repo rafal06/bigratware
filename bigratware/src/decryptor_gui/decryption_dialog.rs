@@ -14,6 +14,7 @@ use crate::status_file::StatusData;
 #[derive(Debug)]
 pub enum DecryptionError {
     PairNotMatching,
+    DeletingShortcuts(Error),
     Other(Error),
 }
 
@@ -49,7 +50,7 @@ pub struct DecryptionDialog {
     #[nwg_control(
         text: "Decrypting your files…",
         position: (20, 20),
-        size: (330, 50),
+        size: (330, 250),
     )]
     text: nwg::Label,
 
@@ -132,8 +133,7 @@ impl DecryptionDialog {
 
             if let Err(err) = remove_self() {
                 sender.notice();
-                // TODO: Add an error variant for deleting self
-                return Err(DecryptionError::Other(err));
+                return Err(DecryptionError::DeletingShortcuts(err));
             }
             sender.notice();
             Ok(())
@@ -149,6 +149,23 @@ impl DecryptionDialog {
                 match err {
                     DecryptionError::PairNotMatching => "The supplied key is not correct".to_owned(),
                     DecryptionError::Other(err) => format!("Error decrypting files: {err}"),
+                    DecryptionError::DeletingShortcuts(err) => {
+                        self.window.set_size(
+                            self.window.size().0,
+                            self.window.size().1 + 200,
+                        );
+                        self.close_button.set_position(
+                            self.close_button.position().0,
+                            self.close_button.position().1 + 200,
+                        );
+                        format!(
+                            "Error deleting shortcuts to Bigratware: {err}\r\n\
+                             Please remove them manually from these locations \
+                             (press the Windows key + R, type in a path and press Ok):\r\n\
+                             %appdata%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\r\n\
+                             %appdata%\\Microsoft\\Windows\\Start Menu\\Programs"
+                        )
+                    },
                 }
             },
         });

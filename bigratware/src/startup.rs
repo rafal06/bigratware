@@ -27,9 +27,9 @@ pub fn install_self() -> Result<()> {
 /// in start menu, startup folder and on desktop
 pub fn remove_self() -> Result<()> {
     let start_menu_dir = dirs_next::data_dir().unwrap().join("Microsoft/Windows/Start Menu/Programs");
-    fs::remove_file(start_menu_dir.join("Startup/bigratware-decryptor.lnk")).ok();
-    fs::remove_file(start_menu_dir.join("Bigratware Decryptor.lnk")).ok();
     fs::remove_file(dirs_next::desktop_dir().unwrap().join("Bigratware Decryptor.lnk")).ok();
+    fs::remove_file(start_menu_dir.join("Bigratware Decryptor.lnk")).ok();
+    fs::remove_file(start_menu_dir.join("Startup/bigratware-decryptor.lnk"))?;
 
     Ok(())
 }
