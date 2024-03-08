@@ -14,7 +14,7 @@ pub fn decode_pair_base64(pair_base64: &str) -> Result<([u8; 32], [u8; 19])> {
     let mut pair = [0u8; 32+19];
     // Ignoring trailing bits, because of the nature of base64
     // https://github.com/marshallpierce/rust-base64#i-want-canonical-base64-encodingdecoding
-    base64::engine::general_purpose::STANDARD_NO_PAD.decode_slice(pair_base64, &mut pair)
+    base64::engine::general_purpose::STANDARD_NO_PAD.decode_slice(pair_base64.trim(), &mut pair)
         .with_context(|| "Error decoding base64 of encrypted key-nonce pair")?;
 
     Ok((
