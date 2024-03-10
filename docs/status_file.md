@@ -3,6 +3,8 @@
 ## Location
 `$encryption_root/.bigrat_status`
 
+Also see here: [Encrypted files location](encrypted_files.md#location)
+
 ## Contents
 
 | Content                              | Length (bytes)                         |
