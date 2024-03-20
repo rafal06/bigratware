@@ -50,7 +50,7 @@ pub struct DecryptionDialog {
     #[nwg_control(
         text: "Decrypting your files…",
         position: (20, 20),
-        size: (330, 250),
+        size: (330, 50),
     )]
     text: nwg::Label,
 
@@ -169,6 +169,12 @@ impl DecryptionDialog {
                 }
             },
         });
+        if let Err(DecryptionError::DeletingShortcuts(_)) = result.as_ref().unwrap() {
+            self.text.set_size(
+                self.text.size().0,
+                self.text.size().1 + 200,
+            )
+        }
         self.progress_bar.set_visible(false);
         self.close_button.set_visible(true);
     }
